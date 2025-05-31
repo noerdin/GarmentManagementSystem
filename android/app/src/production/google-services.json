@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "512257888420",
+    "project_id": "csj-apps-70f66",
+    "storage_bucket": "csj-apps-70f66.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:512257888420:android:448415bfa853ba31911631",
+        "android_client_info": {
+          "package_name": "com.example.csj"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzu4xv_Mp2DU8eU9AiPrs8Nm8MLHuC4aM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,2 @@
+/Users/macbookpro/AndroidStudioProjects/csj/android/app/.cxx/Debug/1j2ao2b1/x86/CMakeFiles/edit_cache.dir
+/Users/macbookpro/AndroidStudioProjects/csj/android/app/.cxx/Debug/1j2ao2b1/x86/CMakeFiles/rebuild_cache.dir

@@ -1,0 +1,2 @@
+/Users/macbookpro/AndroidStudioProjects/csj/android/app/.cxx/Debug/1j2ao2b1/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/macbookpro/AndroidStudioProjects/csj/android/app/.cxx/Debug/1j2ao2b1/armeabi-v7a/CMakeFiles/rebuild_cache.dir
