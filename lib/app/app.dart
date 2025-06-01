@@ -28,6 +28,7 @@ import '../shared/notice_sheet.dart';
     LazySingleton(classType: BottomSheetService),
     LazySingleton(classType: DialogService),
     LazySingleton(classType: NavigationService),
+    LazySingleton(classType: SnackbarService),
     LazySingleton(classType: FirestoreService),
     LazySingleton(classType: FirebaseAuthService),
   ],

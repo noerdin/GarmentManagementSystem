@@ -94,6 +94,22 @@ class FirestoreService {
     }
   }
 
+  Future<void> deleteOrder(String orderId) async {
+    try {
+      await _firestore.collection(_ordersCollection).doc(orderId).delete();
+    } catch (e) {
+      throw 'Failed to delete order: $e';
+    }
+  }
+
+  Future<void> deleteData(String collection, String docId) async {
+    try {
+      await _firestore.collection(collection).doc(docId).delete();
+    } catch (e) {
+      throw 'Failed to delete data from $collection: $e';
+    }
+  }
+
   // Materials
   Stream<List<MaterialModel>> materialsStream() {
     return _firestore.collection(_materialsCollection).snapshots().map(
@@ -132,6 +148,14 @@ class FirestoreService {
           .update(material.toJson());
     } catch (e) {
       throw 'Failed to update material: $e';
+    }
+  }
+
+  Future<void> deleteMaterial(String materialId) async {
+    try {
+      await _firestore.collection(_materialsCollection).doc(materialId).delete();
+    } catch (e) {
+      throw 'Failed to delete material: $e';
     }
   }
 

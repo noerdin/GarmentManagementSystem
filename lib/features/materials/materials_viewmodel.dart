@@ -1,12 +1,26 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:stacked/stacked.dart';
 import 'package:stacked_services/stacked_services.dart';
 import '../../app/app.locator.dart';
 import '../../models/material_model.dart';
 import '../../services/firestore_service.dart';
+import '../../shared/app_error.dart';
+import '../../shared/result_state.dart';
+import '../../shared/stock_update_dialog.dart';
+import '../../ui/app_colors.dart';
+import '../../ui/text_style.dart';
+import 'add_material_view.dart';
 
 class MaterialsViewModel extends BaseViewModel {
   final _firestoreService = locator<FirestoreService>();
   final _dialogService = locator<DialogService>();
+  final NavigationService _navigationService = locator<NavigationService>();
+  final SnackbarService _snackbarService = locator<SnackbarService>();
+
+  // State Management
+  ResultState<List<MaterialModel>> _materialsState = const Loading();
+  ResultState<List<MaterialModel>> get materialsState => _materialsState;
 
   List<MaterialModel> _materials = [];
   List<MaterialModel> _filteredMaterials = [];
@@ -25,33 +39,33 @@ class MaterialsViewModel extends BaseViewModel {
   int get lowStockCount => _materials.where((m) => m.isLowStock).length;
 
   Future<void> init() async {
-    setBusy(true);
-    try {
-      await loadData();
-    } catch (e) {
-      setError('Failed to load materials data: $e');
-    } finally {
-      setBusy(false);
-    }
+    await loadData();
   }
 
   Future<void> loadData() async {
-    final materialsData = await _firestoreService.materialsStream().first;
-    _materials = materialsData;
-    _filteredMaterials = materialsData;
-    _updateDisplayedMaterials();
+    _materialsState = const Loading(message: 'Loading materials...');
     notifyListeners();
+
+    try {
+      final materialsData = await _firestoreService.materialsStream().first;
+      _materials = materialsData;
+      _filteredMaterials = materialsData;
+      _updateDisplayedMaterials();
+
+      _materialsState = Success(_materials);
+      notifyListeners();
+    } catch (e) {
+      _materialsState = Error(AppError.generic('Failed to load materials: $e'));
+      notifyListeners();
+    }
   }
 
   Future<void> refreshData() async {
-    setBusy(true);
-    try {
-      await loadData();
-    } catch (e) {
-      setError('Failed to refresh materials data: $e');
-    } finally {
-      setBusy(false);
-    }
+    await loadData();
+    _snackbarService.showSnackbar(
+      message: 'Materials refreshed',
+      duration: const Duration(seconds: 2),
+    );
   }
 
   // Handle tab selection
@@ -111,9 +125,8 @@ class MaterialsViewModel extends BaseViewModel {
   }
 
   // Show material details dialog
-  void showMaterialDetails(MaterialModel material) async {
-    await _dialogService
-        .showDialog(
+  Future<void> showMaterialDetails(MaterialModel material) async {
+    final result = await _dialogService.showDialog(
       title: 'Material Details',
       description: 'Material ID: ${material.materialId}\n'
           'Name: ${material.nama}\n'
@@ -124,41 +137,247 @@ class MaterialsViewModel extends BaseViewModel {
           'Price: Rp ${material.hargaPerUnit.toStringAsFixed(0)}/${material.satuan}\n'
           'Last Updated: ${_formatDate(material.lastUpdated)}',
       dialogPlatform: DialogPlatform.Material,
-      buttonTitle: 'Update Stock',
+      buttonTitle: 'Edit Material',
       cancelTitle: 'Close',
-    )
-        .then((response) {
-      if (response != null && response.confirmed) {
-        showUpdateStockDialog(material);
-      }
-    });
+    );
+
+    if (result?.confirmed ?? false) {
+      await _showMaterialActions(material);
+    }
   }
 
-  // Show update stock dialog
-  void showUpdateStockDialog(MaterialModel material) async {
-    // Implementation would be needed here to:
-    // 1. Show a dialog to input new stock quantity
-    // 2. Update the material in Firestore
-    // 3. Refresh the data
+  // Add this helper method
+  Future<void> _showMaterialActions(MaterialModel material) async {
+    final BuildContext? context = StackedService.navigatorKey?.currentContext;
 
-    await _dialogService.showDialog(
-      title: 'Update Stock',
-      description: 'This feature will be implemented soon',
-      buttonTitle: 'OK',
+    if (context == null) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Material Actions',
+                style: heading3Style(context),
+              ),
+              const SizedBox(height: 24),
+              ListTile(
+                leading: const Icon(Icons.edit, color: kcPrimaryColor),
+                title: const Text('Edit Material'),
+                subtitle: const Text('Modify material information'),
+                onTap: () {
+                  Navigator.pop(context);
+                  editMaterial(material.materialId);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.inventory, color: kcInfoColor),
+                title: const Text('Update Stock'),
+                subtitle: Text('Current: ${material.stok} ${material.satuan}'),
+                onTap: () {
+                  Navigator.pop(context);
+                  showUpdateStockDialog(material);
+                },
+              ),
+              if (material.stok == 0) ...[
+                ListTile(
+                  leading: const Icon(Icons.delete, color: kcErrorColor),
+                  title: const Text('Delete Material'),
+                  subtitle: const Text('Remove from inventory'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    deleteMaterial(material);
+                  },
+                ),
+              ],
+              const SizedBox(height: 8),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  // Show add material dialog
-  void showAddMaterialDialog() async {
-    // Implementation would be needed here to:
-    // 1. Show a form dialog to collect material details
-    // 2. Create a new MaterialModel
-    // 3. Save it to Firestore
-    // 4. Refresh the data
+  // Navigate to add material form
+  Future<void> showAddMaterialDialog() async {
+    final result = await _navigationService.navigateToView(const AddMaterialView());
+    if (result == true) {
+      await refreshData();
+    }
+  }
+
+  // Navigate to edit material form
+  Future<void> editMaterial(String materialId) async {
+    final result = await _navigationService.navigateToView(
+        AddMaterialView(materialId: materialId)
+    );
+    if (result == true) {
+      await refreshData();
+    }
+  }
+
+  // Show update stock dialog
+  Future<void> showUpdateStockDialog(MaterialModel material) async {
+    final BuildContext? context = StackedService.navigatorKey?.currentContext;
+
+    if (context == null) {
+      _snackbarService.showSnackbar(
+        message: 'Unable to show stock update dialog',
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return StockUpdateDialog(
+          materialName: material.nama,
+          currentStock: material.stok,
+          unit: material.satuan,
+          onStockUpdate: (int newStock, String reason) async {
+            await _updateMaterialStock(material, newStock, reason);
+          },
+        );
+      },
+    );
+  }
+
+  // Update material stock
+  Future<void> _updateMaterialStock(MaterialModel material, int newStock, String reason) async {
+    setBusy(true);
+
+    try {
+      final updatedMaterial = material.copyWith(
+        stok: newStock,
+        lastUpdated: DateTime.now(),
+      );
+
+      await _firestoreService.updateMaterial(updatedMaterial);
+
+      // Log stock transaction (if you have a stock transaction model)
+      // await _firestoreService.addStockTransaction(material.materialId, reason, newStock - material.stok);
+
+      _snackbarService.showSnackbar(
+        message: 'Stock updated successfully: ${material.nama} now has $newStock ${material.satuan}',
+        duration: const Duration(seconds: 3),
+      );
+
+      await refreshData();
+    } catch (e) {
+      _snackbarService.showSnackbar(
+        message: 'Failed to update stock: $e',
+        duration: const Duration(seconds: 3),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Delete material with confirmation
+  Future<void> deleteMaterial(MaterialModel material) async {
+    final result = await _dialogService.showDialog(
+      title: 'Delete Material',
+      description: 'Are you sure you want to delete "${material.nama}"? This action cannot be undone.\n\nCurrent Stock: ${material.stok} ${material.satuan}',
+      buttonTitle: 'Delete',
+      cancelTitle: 'Cancel',
+      dialogPlatform: DialogPlatform.Material,
+    );
+
+    if (result?.confirmed ?? false) {
+      setBusy(true);
+
+      try {
+        await _firestoreService.deleteMaterial(material.materialId);
+
+        _snackbarService.showSnackbar(
+          message: 'Material "${material.nama}" deleted successfully',
+          duration: const Duration(seconds: 3),
+        );
+
+        await refreshData();
+      } catch (e) {
+        _snackbarService.showSnackbar(
+          message: 'Failed to delete material: $e',
+          duration: const Duration(seconds: 3),
+        );
+      } finally {
+        setBusy(false);
+      }
+    }
+  }
+
+  // Bulk stock operations
+  Future<void> bulkStockUpdate(List<MaterialModel> materials, int adjustment, String reason) async {
+    setBusy(true);
+
+    try {
+      for (final material in materials) {
+        final newStock = material.stok + adjustment;
+        if (newStock >= 0) {
+          final updatedMaterial = material.copyWith(
+            stok: newStock,
+            lastUpdated: DateTime.now(),
+          );
+          await _firestoreService.updateMaterial(updatedMaterial);
+        }
+      }
+
+      _snackbarService.showSnackbar(
+        message: '${materials.length} materials updated successfully',
+        duration: const Duration(seconds: 3),
+      );
+
+      await refreshData();
+    } catch (e) {
+      _snackbarService.showSnackbar(
+        message: 'Failed to update materials: $e',
+        duration: const Duration(seconds: 3),
+      );
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Export materials (placeholder for future implementation)
+  Future<void> exportMaterials() async {
+    _snackbarService.showSnackbar(
+      message: 'Export feature will be implemented soon',
+      duration: const Duration(seconds: 2),
+    );
+  }
+
+  // Generate low stock report
+  Future<void> generateLowStockReport() async {
+    final lowStockMaterials = _materials.where((m) => m.isLowStock).toList();
+
+    if (lowStockMaterials.isEmpty) {
+      _snackbarService.showSnackbar(
+        message: 'No materials with low stock found',
+        duration: const Duration(seconds: 2),
+      );
+      return;
+    }
+
+    final reportText = lowStockMaterials.map((material) {
+      return '• ${material.nama}: ${material.stok} ${material.satuan} (Location: ${material.lokasi})';
+    }).join('\n');
 
     await _dialogService.showDialog(
-      title: 'Add Material',
-      description: 'This feature will be implemented soon',
+      title: 'Low Stock Report',
+      description: 'Materials with low stock (${lowStockMaterials.length} items):\n\n$reportText',
       buttonTitle: 'OK',
     );
   }
@@ -166,5 +385,10 @@ class MaterialsViewModel extends BaseViewModel {
   // Helper method to format dates
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
+  }
+
+  // Retry mechanism for failed operations
+  Future<void> retryLastOperation() async {
+    await loadData();
   }
 }
