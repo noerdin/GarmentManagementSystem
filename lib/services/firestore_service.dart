@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/enhanced_production_model.dart';
 import '../models/material_model.dart';
+import '../models/material_requirement_model.dart';
 import '../models/order_model.dart';
 import '../models/production_model.dart';
 import '../models/purchase_model.dart';
@@ -156,6 +158,39 @@ class FirestoreService {
       await _firestore.collection(_materialsCollection).doc(materialId).delete();
     } catch (e) {
       throw 'Failed to delete material: $e';
+    }
+  }
+
+  Future<List<OrderMaterialTemplate>> getMaterialTemplates() async {
+    try {
+      final snapshot = await _firestore.collection('materialTemplates').get();
+      return snapshot.docs
+          .map((doc) => OrderMaterialTemplate.fromFirestore(doc))
+          .toList();
+    } catch (e) {
+      throw 'Failed to load material templates: $e';
+    }
+  }
+
+  Future<void> saveMaterialTemplate(OrderMaterialTemplate template) async {
+    try {
+      await _firestore
+          .collection('materialTemplates')
+          .doc(template.orderId)
+          .set(template.toJson());
+    } catch (e) {
+      throw 'Failed to save material template: $e';
+    }
+  }
+
+  // Enhanced Production
+  Future<EnhancedProductionModel> getProductionById(String produksiId) async {
+    try {
+      final doc = await _firestore.collection('produksi').doc(produksiId).get();
+      if (!doc.exists) throw 'Production not found';
+      return EnhancedProductionModel.fromFirestore(doc);
+    } catch (e) {
+      throw 'Failed to retrieve production: $e';
     }
   }
 

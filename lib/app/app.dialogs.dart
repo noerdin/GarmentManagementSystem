@@ -4,7 +4,7 @@ import 'app.locator.dart';
 import '../shared/info_alert_dialog.dart';
 
 enum DialogType {
-  infoAlert, form,
+  infoAlert, form, info, selection,
 }
 
 void setupDialogUi() {
