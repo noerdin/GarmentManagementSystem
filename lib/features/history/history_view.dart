@@ -74,10 +74,10 @@ class HistoryView extends StackedView<HistoryViewModel> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
-                    _buildSummaryItem('Total Orders', viewModel.totalOrdersInPeriod.toString()),
-                    _buildSummaryItem('Completed', viewModel.completedOrdersInPeriod.toString()),
-                    _buildSummaryItem('Production Records', viewModel.totalProductionRecords.toString()),
-                    _buildSummaryItem('Shipments', viewModel.totalShipments.toString()),
+                    _buildSummaryItem(context, 'Total Orders', viewModel.totalOrdersInPeriod.toString()),
+                    _buildSummaryItem(context, 'Completed', viewModel.completedOrdersInPeriod.toString()),
+                    _buildSummaryItem(context, 'Production Records', viewModel.totalProductionRecords.toString()),
+                    _buildSummaryItem(context, 'Shipments', viewModel.totalShipments.toString()),
                   ],
                 ),
               ],
@@ -122,7 +122,7 @@ class HistoryView extends StackedView<HistoryViewModel> {
     );
   }
 
-  Widget _buildSummaryItem(String title, String value) {
+  Widget _buildSummaryItem(BuildContext context, String title, String value) {
     return Column(
       children: [
         Text(value, style: heading4Style(context).copyWith(color: kcPrimaryColor)),
@@ -137,7 +137,7 @@ class HistoryView extends StackedView<HistoryViewModel> {
     }
 
     if (viewModel.filteredOrders.isEmpty) {
-      return _buildEmptyState('No orders found in selected period');
+      return _buildEmptyState(context, 'No orders found in selected period');
     }
 
     return ListView.builder(
@@ -180,7 +180,7 @@ class HistoryView extends StackedView<HistoryViewModel> {
                       ),
                     ),
                     horizontalSpaceSmall,
-                    _buildStatusChip(order.status),
+                    _buildStatusChip(context, order.status),
                   ],
                 ),
                 Text(formatDate(order.tanggalOrder), style: captionStyle(context)),
@@ -220,7 +220,7 @@ class HistoryView extends StackedView<HistoryViewModel> {
     }
 
     if (viewModel.filteredProductions.isEmpty) {
-      return _buildEmptyState('No production records found in selected period');
+      return _buildEmptyState(context, 'No production records found in selected period');
     }
 
     return ListView.builder(
@@ -259,15 +259,15 @@ class HistoryView extends StackedView<HistoryViewModel> {
               runSpacing: 4,
               children: [
                 if (production.tahap.bartek > 0)
-                  _buildProductionStageChip('Bartek', production.tahap.bartek),
+                  _buildProductionStageChip(context, 'Bartek', production.tahap.bartek),
                 if (production.tahap.cutting.hasilCutting > 0)
-                  _buildProductionStageChip('Cutting', production.tahap.cutting.hasilCutting),
+                  _buildProductionStageChip(context, 'Cutting', production.tahap.cutting.hasilCutting),
                 if (production.tahap.sewing > 0)
-                  _buildProductionStageChip('Sewing', production.tahap.sewing),
+                  _buildProductionStageChip(context, 'Sewing', production.tahap.sewing),
                 if (production.tahap.finishing > 0)
-                  _buildProductionStageChip('Finishing', production.tahap.finishing),
+                  _buildProductionStageChip(context, 'Finishing', production.tahap.finishing),
                 if (production.tahap.washing > 0)
-                  _buildProductionStageChip('Washing', production.tahap.washing),
+                  _buildProductionStageChip(context, 'Washing', production.tahap.washing),
               ],
             ),
             if (production.keterangan.isNotEmpty) ...[
@@ -286,7 +286,7 @@ class HistoryView extends StackedView<HistoryViewModel> {
     }
 
     if (viewModel.filteredShipments.isEmpty) {
-      return _buildEmptyState('No shipments found in selected period');
+      return _buildEmptyState(context, 'No shipments found in selected period');
     }
 
     return ListView.builder(
@@ -294,12 +294,12 @@ class HistoryView extends StackedView<HistoryViewModel> {
       itemCount: viewModel.filteredShipments.length,
       itemBuilder: (context, index) {
         final shipment = viewModel.filteredShipments[index];
-        return _buildShippingHistoryCard(context, shipment);
+        return _buildShippingHistoryCard(context, viewModel, shipment);
       },
     );
   }
 
-  Widget _buildShippingHistoryCard(BuildContext context, dynamic shipment) {
+  Widget _buildShippingHistoryCard(BuildContext context, HistoryViewModel viewModel, dynamic shipment) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
@@ -360,7 +360,7 @@ class HistoryView extends StackedView<HistoryViewModel> {
     }
 
     if (viewModel.filteredMaterialTransactions.isEmpty) {
-      return _buildEmptyState('No material transactions found in selected period');
+      return _buildEmptyState(context, 'No material transactions found in selected period');
     }
 
     return ListView.builder(
@@ -419,7 +419,7 @@ class HistoryView extends StackedView<HistoryViewModel> {
     );
   }
 
-  Widget _buildStatusChip(String status) {
+  Widget _buildStatusChip(BuildContext context, String status) {
     Color color;
     switch (status) {
       case 'Pending': color = kcWarningColor; break;
@@ -441,7 +441,7 @@ class HistoryView extends StackedView<HistoryViewModel> {
     );
   }
 
-  Widget _buildProductionStageChip(String stage, int quantity) {
+  Widget _buildProductionStageChip(BuildContext context, String stage, int quantity) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -455,7 +455,7 @@ class HistoryView extends StackedView<HistoryViewModel> {
     );
   }
 
-  Widget _buildEmptyState(String message) {
+  Widget _buildEmptyState(BuildContext context, String message) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,

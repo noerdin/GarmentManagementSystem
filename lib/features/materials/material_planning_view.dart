@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:stacked/stacked.dart';
 import '../../models/material_requirement_model.dart';
 import '../../shared/loading_overlay.dart';
@@ -78,8 +77,6 @@ class MaterialPlanningView extends StackedView<MaterialPlanningViewModel> {
                         children: [
                           Text('Product: ${viewModel.selectedOrder!.namaProduk}',
                               style: bodyBoldStyle(context)),
-                          Text('Category: ${viewModel.selectedOrder!.productCategory ?? 'N/A'}',
-                              style: bodyStyle(context)),
                           Text('Color: ${viewModel.selectedOrder!.warna}',
                               style: bodyStyle(context)),
                           Text('Quantity: ${viewModel.selectedOrder!.jumlahTotal}',

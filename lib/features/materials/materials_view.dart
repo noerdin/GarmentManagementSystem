@@ -6,7 +6,14 @@ import '../../ui/ui_helpers.dart';
 import 'materials_viewmodel.dart';
 
 class MaterialsView extends StackedView<MaterialsViewModel> {
-  const MaterialsView({super.key});
+  final String? orderId; // Added orderId parameter
+  final bool showOrderContext; // Flag to show order-related features
+
+  const MaterialsView({
+    super.key,
+    this.orderId,
+    this.showOrderContext = false,
+  });
 
   @override
   Widget builder(
@@ -18,11 +25,20 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
       backgroundColor: kcBackgroundColor,
       appBar: AppBar(
         title: Text(
-          'Materials & Inventory',
+          showOrderContext && orderId != null
+              ? 'Materials for Order'
+              : 'Materials & Inventory',
           style: heading3Style(context).copyWith(color: Colors.white),
         ),
         backgroundColor: kcPrimaryColor,
         actions: [
+          if (showOrderContext) ...[
+            IconButton(
+              icon: const Icon(Icons.timeline),
+              onPressed: viewModel.navigateToMaterialPlanning,
+              tooltip: 'Material Planning',
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: viewModel.refreshData,
@@ -31,7 +47,7 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: viewModel.showAddMaterialDialog,
+        onPressed: () => viewModel.showAddMaterialDialog(orderContext: orderId),
         backgroundColor: kcPrimaryColor,
         child: const Icon(Icons.add),
       ),
@@ -48,6 +64,12 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
       length: 3,
       child: Column(
         children: [
+          // Order Context Section (when orderId is provided)
+          if (showOrderContext && viewModel.selectedOrder != null) ...[
+            _buildOrderContextCard(context, viewModel),
+            verticalSpaceSmall,
+          ],
+
           // Tab Bar
           Container(
             color: Colors.white,
@@ -102,6 +124,25 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
                     tooltip: 'Low Stock Filter',
                   ),
                 ),
+                if (showOrderContext) ...[
+                  horizontalSpaceSmall,
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: IconButton(
+                      onPressed: viewModel.toggleOrderRelevantFilter,
+                      icon: Icon(
+                        Icons.assignment,
+                        color: viewModel.showOrderRelevantOnly
+                            ? kcInfoColor
+                            : kcPrimaryColor,
+                      ),
+                      tooltip: 'Order Relevant Materials',
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -144,10 +185,25 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
                   value: viewModel.lowStockCount.toString(),
                   color: kcWarningColor,
                 ),
+                if (showOrderContext) ...[
+                  _buildDivider(),
+                  _buildStatColumn(
+                    context,
+                    title: 'Needed',
+                    value: viewModel.orderRelevantCount.toString(),
+                    color: kcInfoColor,
+                  ),
+                ],
               ],
             ),
           ),
           verticalSpaceMedium,
+
+          // Quick Actions for Order Context
+          if (showOrderContext && orderId != null) ...[
+            _buildQuickActionsCard(context, viewModel),
+            verticalSpaceSmall,
+          ],
 
           // Materials List
           Expanded(
@@ -161,6 +217,125 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
                 return _buildMaterialCard(context, material, viewModel);
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOrderContextCard(BuildContext context, MaterialsViewModel viewModel) {
+    final order = viewModel.selectedOrder!;
+
+    return Container(
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: defaultBoxShadow,
+        border: Border.all(color: kcInfoColor.withOpacity(0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.assignment, color: kcInfoColor),
+              horizontalSpaceSmall,
+              Text('Order Context', style: bodyBoldStyle(context).copyWith(color: kcInfoColor)),
+            ],
+          ),
+          verticalSpaceSmall,
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: kcInfoColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Order ID: ${order.orderId}', style: bodyBoldStyle(context)),
+                Text('Product: ${order.namaProduk}', style: bodyStyle(context)),
+                Text('Color: ${order.warna}', style: bodyStyle(context)),
+                Text('Quantity: ${order.jumlahTotal}', style: bodyStyle(context)),
+                Text('Customer: ${order.namaCustomer}', style: bodyStyle(context)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActionsCard(BuildContext context, MaterialsViewModel viewModel) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: defaultBoxShadow,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Quick Actions', style: bodyBoldStyle(context)),
+          verticalSpaceMedium,
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: viewModel.navigateToMaterialPlanning,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kcPrimaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.timeline),
+                  label: const Text('Plan Materials'),
+                ),
+              ),
+              horizontalSpaceSmall,
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () => viewModel.showAddMaterialDialog(orderContext: orderId),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kcSuccessColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Material'),
+                ),
+              ),
+            ],
+          ),
+          verticalSpaceSmall,
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: viewModel.checkMaterialRequirements,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: kcInfoColor),
+                  ),
+                  icon: const Icon(Icons.check_circle_outline, color: kcInfoColor),
+                  label: Text('Check Requirements',
+                      style: TextStyle(color: kcInfoColor)),
+                ),
+              ),
+              horizontalSpaceSmall,
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: viewModel.generateShoppingList,
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: kcSecondaryColor),
+                  ),
+                  icon: const Icon(Icons.shopping_cart_outlined, color: kcSecondaryColor),
+                  label: Text('Shopping List',
+                      style: TextStyle(color: kcSecondaryColor)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -184,15 +359,13 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
           ),
           verticalSpaceSmall,
           Text(
-            viewModel.showLowStockOnly
-                ? 'No low stock materials found'
-                : 'Start by adding materials to your inventory',
+            _getEmptyStateMessage(viewModel),
             style: bodyStyle(context),
             textAlign: TextAlign.center,
           ),
           verticalSpaceLarge,
           ElevatedButton.icon(
-            onPressed: viewModel.showAddMaterialDialog,
+            onPressed: () => viewModel.showAddMaterialDialog(orderContext: orderId),
             style: ElevatedButton.styleFrom(
               backgroundColor: kcPrimaryColor,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
@@ -203,9 +376,29 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
               style: buttonTextStyle(context),
             ),
           ),
+          if (showOrderContext) ...[
+            verticalSpaceSmall,
+            TextButton.icon(
+              onPressed: viewModel.navigateToMaterialPlanning,
+              icon: const Icon(Icons.timeline),
+              label: const Text('Or Plan Materials for Order'),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  String _getEmptyStateMessage(MaterialsViewModel viewModel) {
+    if (viewModel.showLowStockOnly) {
+      return 'No low stock materials found';
+    } else if (viewModel.showOrderRelevantOnly) {
+      return 'No materials relevant to this order found';
+    } else if (showOrderContext) {
+      return 'Start by planning materials for this order\nor add materials to your inventory';
+    } else {
+      return 'Start by adding materials to your inventory';
+    }
   }
 
   Widget _buildStatColumn(
@@ -251,6 +444,7 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
   Widget _buildMaterialCard(
       BuildContext context, dynamic material, MaterialsViewModel viewModel) {
     final isLowStock = material.isLowStock;
+    final isOrderRelevant = showOrderContext && viewModel.isMaterialRelevantToOrder(material);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -259,6 +453,8 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
         borderRadius: BorderRadius.circular(12),
         side: isLowStock
             ? BorderSide(color: kcWarningColor.withOpacity(0.5), width: 1.5)
+            : isOrderRelevant
+            ? BorderSide(color: kcInfoColor.withOpacity(0.5), width: 1.5)
             : BorderSide.none,
       ),
       child: InkWell(
@@ -317,35 +513,70 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
                       ),
                     ],
                   ),
-                  if (isLowStock)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: kcWarningColor.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            color: kcWarningColor,
-                            size: 14,
+                  Column(
+                    children: [
+                      if (isLowStock)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
                           ),
-                          horizontalSpaceTiny,
-                          Text(
-                            'Low Stock',
-                            style: TextStyle(
-                              color: kcWarningColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
+                          decoration: BoxDecoration(
+                            color: kcWarningColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                        ],
-                      ),
-                    ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                color: kcWarningColor,
+                                size: 14,
+                              ),
+                              horizontalSpaceTiny,
+                              Text(
+                                'Low Stock',
+                                style: TextStyle(
+                                  color: kcWarningColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (isOrderRelevant && !isLowStock)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: kcInfoColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.assignment,
+                                color: kcInfoColor,
+                                size: 14,
+                              ),
+                              horizontalSpaceTiny,
+                              Text(
+                                'Needed',
+                                style: TextStyle(
+                                  color: kcInfoColor,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
               ),
               verticalSpaceMedium,
@@ -394,6 +625,23 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
                             ),
                           ],
                         ),
+                        if (showOrderContext && isOrderRelevant) ...[
+                          verticalSpaceTiny,
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.info_outline,
+                                size: 18,
+                                color: kcInfoColor,
+                              ),
+                              horizontalSpaceSmall,
+                              Text(
+                                'Relevant to current order',
+                                style: captionStyle(context).copyWith(color: kcInfoColor),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -406,7 +654,7 @@ class MaterialsView extends StackedView<MaterialsViewModel> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: kcPrimaryColor,
+                          color: isLowStock ? kcWarningColor : kcPrimaryColor,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(

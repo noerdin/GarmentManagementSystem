@@ -11,6 +11,12 @@ import 'package:csj/features/startup/startup_view.dart' as i3;
 import 'package:stacked/stacked.dart' as i1;
 import 'package:stacked_services/stacked_services.dart' as i11;
 
+import '../features/dashboard/enhanced_dashboard_view.dart' as i12;
+import '../features/history/history_view.dart' as i16;
+import '../features/materials/material_planning_view.dart' as i15;
+import '../features/orders/enhanced_order_form_view.dart' as i13;
+import '../features/production/enhanced_production_form_view.dart' as i14;
+
 class Routes {
   static const homeView = '/home-view';
 
@@ -28,6 +34,16 @@ class Routes {
 
   static const shippingView = '/shipping-view';
 
+  static const enhancedDashboardView = '/enhanced-dashboard-view';
+
+  static const enhancedOrderFormView = '/enhanced-order-form-view';
+
+  static const enhancedProductionFormView = '/enhanced-production-form-view';
+
+  static const materialPlanningView = '/material-planning-view';
+
+  static const historyView = '/history-view';
+
   static const all = <String>{
     homeView,
     startupView,
@@ -37,6 +53,11 @@ class Routes {
     materialsView,
     productionView,
     shippingView,
+    enhancedDashboardView,
+    enhancedOrderFormView,
+    enhancedProductionFormView,
+    materialPlanningView,
+    historyView,
   };
 }
 
@@ -73,6 +94,26 @@ class StackedRouter extends i1.RouterBase {
     i1.RouteDef(
       Routes.shippingView,
       page: i9.ShippingView,
+    ),
+    i1.RouteDef(
+      Routes.enhancedDashboardView,
+      page: i12.EnhancedDashboardView,
+    ),
+    i1.RouteDef(
+      Routes.enhancedOrderFormView,
+      page: i13.EnhancedOrderFormView,
+    ),
+    i1.RouteDef(
+      Routes.enhancedProductionFormView,
+      page: i14.EnhancedProductionFormView,
+    ),
+    i1.RouteDef(
+      Routes.materialPlanningView,
+      page: i15.MaterialPlanningView,
+    ),
+    i1.RouteDef(
+      Routes.historyView,
+      page: i16.HistoryView,
     ),
   ];
 
@@ -122,6 +163,45 @@ class StackedRouter extends i1.RouterBase {
     i9.ShippingView: (data) {
       return i10.MaterialPageRoute<dynamic>(
         builder: (context) => const i9.ShippingView(),
+        settings: data,
+      );
+    },
+    i12.EnhancedDashboardView: (data) {
+      return i10.MaterialPageRoute<dynamic>(
+        builder: (context) => const i12.EnhancedDashboardView(),
+        settings: data,
+      );
+    },
+    i13.EnhancedOrderFormView: (data) {
+      final args = data.arguments as Map<String, dynamic>?;
+      return i10.MaterialPageRoute<dynamic>(
+        builder: (context) => i13.EnhancedOrderFormView(
+          orderId: args?['orderId'],
+        ),
+        settings: data,
+      );
+    },
+    i14.EnhancedProductionFormView: (data) {
+      final args = data.arguments as Map<String, dynamic>?;
+      return i10.MaterialPageRoute<dynamic>(
+        builder: (context) => i14.EnhancedProductionFormView(
+          productionId: args?['productionId'],
+        ),
+        settings: data,
+      );
+    },
+    i15.MaterialPlanningView: (data) {
+      final args = data.arguments as Map<String, dynamic>?;
+      return i10.MaterialPageRoute<dynamic>(
+        builder: (context) => i15.MaterialPlanningView(
+          orderId: args?['orderId'],
+        ),
+        settings: data,
+      );
+    },
+    i16.HistoryView: (data) {
+      return i10.MaterialPageRoute<dynamic>(
+        builder: (context) => const i16.HistoryView(),
         settings: data,
       );
     },
@@ -241,6 +321,82 @@ extension NavigatorStateExtension on i11.NavigationService {
     transition,
   ]) async {
     return navigateTo<dynamic>(Routes.shippingView,
+        id: routerId,
+        preventDuplicates: preventDuplicates,
+        parameters: parameters,
+        transition: transition);
+  }
+
+  Future<dynamic> navigateToEnhancedDashboardView([
+    int? routerId,
+    bool preventDuplicates = true,
+    Map<String, String>? parameters,
+    Widget Function(BuildContext, Animation<double>, Animation<double>, Widget)?
+    transition,
+  ]) async {
+    return navigateTo<dynamic>(Routes.enhancedDashboardView,
+        id: routerId,
+        preventDuplicates: preventDuplicates,
+        parameters: parameters,
+        transition: transition);
+  }
+
+  Future<dynamic> navigateToEnhancedOrderFormView({
+    String? orderId,
+    int? routerId,
+    bool preventDuplicates = true,
+    Map<String, String>? parameters,
+    Widget Function(BuildContext, Animation<double>, Animation<double>, Widget)?
+    transition,
+  }) async {
+    return navigateTo<dynamic>(Routes.enhancedOrderFormView,
+        arguments: {'orderId': orderId},
+        id: routerId,
+        preventDuplicates: preventDuplicates,
+        parameters: parameters,
+        transition: transition);
+  }
+
+  Future<dynamic> navigateToEnhancedProductionFormView({
+    String? productionId,
+    int? routerId,
+    bool preventDuplicates = true,
+    Map<String, String>? parameters,
+    Widget Function(BuildContext, Animation<double>, Animation<double>, Widget)?
+    transition,
+  }) async {
+    return navigateTo<dynamic>(Routes.enhancedProductionFormView,
+        arguments: {'productionId': productionId},
+        id: routerId,
+        preventDuplicates: preventDuplicates,
+        parameters: parameters,
+        transition: transition);
+  }
+
+  Future<dynamic> navigateToMaterialPlanningView({
+    String? orderId,
+    int? routerId,
+    bool preventDuplicates = true,
+    Map<String, String>? parameters,
+    Widget Function(BuildContext, Animation<double>, Animation<double>, Widget)?
+    transition,
+  }) async {
+    return navigateTo<dynamic>(Routes.materialPlanningView,
+        arguments: {'orderId': orderId},
+        id: routerId,
+        preventDuplicates: preventDuplicates,
+        parameters: parameters,
+        transition: transition);
+  }
+
+  Future<dynamic> navigateToHistoryView([
+    int? routerId,
+    bool preventDuplicates = true,
+    Map<String, String>? parameters,
+    Widget Function(BuildContext, Animation<double>, Animation<double>, Widget)?
+    transition,
+  ]) async {
+    return navigateTo<dynamic>(Routes.historyView,
         id: routerId,
         preventDuplicates: preventDuplicates,
         parameters: parameters,

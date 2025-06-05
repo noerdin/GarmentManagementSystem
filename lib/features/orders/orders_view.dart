@@ -28,12 +28,18 @@ class OrdersView extends StackedView<OrdersViewModel> {
             onPressed: viewModel.refreshData,
             tooltip: 'Refresh Data',
           ),
+          IconButton(
+            icon: const Icon(Icons.file_download),
+            onPressed: viewModel.exportOrders,
+            tooltip: 'Export Orders',
+          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: viewModel.showAddOrderDialog,
         backgroundColor: kcPrimaryColor,
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('New Order'),
       ),
       body: viewModel.isBusy
           ? const Center(
@@ -56,87 +62,106 @@ class OrdersView extends StackedView<OrdersViewModel> {
               unselectedLabelColor: kcSecondaryTextColor,
               indicatorColor: kcPrimaryColor,
               tabs: const [
-                Tab(text: 'All'),
-                Tab(text: 'Pending'),
-                Tab(text: 'Production'),
-                Tab(text: 'Completed'),
+                Tab(text: 'All', icon: Icon(Icons.list_alt, size: 16)),
+                Tab(text: 'Pending', icon: Icon(Icons.pending_actions, size: 16)),
+                Tab(text: 'Production', icon: Icon(Icons.precision_manufacturing, size: 16)),
+                Tab(text: 'Completed', icon: Icon(Icons.check_circle, size: 16)),
               ],
               onTap: viewModel.setSelectedTab,
             ),
           ),
 
           // Search and filter
-          Padding(
+          Container(
             padding: const EdgeInsets.all(16),
+            color: Colors.white,
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     onChanged: viewModel.filterOrders,
                     decoration: InputDecoration(
-                      hintText: 'Search by Order ID or Customer',
+                      hintText: 'Search by Order ID, Customer, or Product',
                       prefixIcon: const Icon(Icons.search),
                       filled: true,
-                      fillColor: Colors.white,
+                      fillColor: kcBackgroundColor,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
                         borderSide: BorderSide.none,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
                     ),
                   ),
                 ),
                 horizontalSpaceSmall,
                 Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: viewModel.showOverdueOnly ? kcErrorColor : kcBackgroundColor,
                     borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: viewModel.showOverdueOnly ? kcErrorColor : kcLightGrey,
+                    ),
                   ),
                   child: IconButton(
                     onPressed: viewModel.toggleOverdueFilter,
                     icon: Icon(
                       Icons.warning_amber_rounded,
-                      color: viewModel.showOverdueOnly
-                          ? kcErrorColor
-                          : kcPrimaryColor,
+                      color: viewModel.showOverdueOnly ? Colors.white : kcErrorColor,
                     ),
-                    tooltip: 'Overdue Filter',
+                    tooltip: 'Show Overdue Only',
+                  ),
+                ),
+                horizontalSpaceSmall,
+                Container(
+                  decoration: BoxDecoration(
+                    color: kcBackgroundColor,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: kcLightGrey),
+                  ),
+                  child: IconButton(
+                    onPressed: viewModel.showFilterOptions,
+                    icon: const Icon(Icons.filter_list, color: kcPrimaryColor),
+                    tooltip: 'More Filters',
                   ),
                 ),
               ],
             ),
           ),
 
-          // Order Stats
+          // Order Stats Summary
           Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16),
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+              boxShadow: defaultBoxShadow,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatColumn(
                   context,
-                  title: 'Pending',
-                  value: viewModel.pendingCount.toString(),
-                  color: kcWarningColor,
+                  title: 'Total',
+                  value: viewModel.orders.length.toString(),
+                  color: kcPrimaryColor,
+                  icon: Icons.list_alt,
                 ),
                 _buildDivider(),
                 _buildStatColumn(
                   context,
-                  title: 'In Production',
+                  title: 'Pending',
+                  value: viewModel.pendingCount.toString(),
+                  color: kcWarningColor,
+                  icon: Icons.pending_actions,
+                ),
+                _buildDivider(),
+                _buildStatColumn(
+                  context,
+                  title: 'Production',
                   value: viewModel.productionCount.toString(),
                   color: kcInfoColor,
+                  icon: Icons.precision_manufacturing,
                 ),
                 _buildDivider(),
                 _buildStatColumn(
@@ -144,23 +169,36 @@ class OrdersView extends StackedView<OrdersViewModel> {
                   title: 'Completed',
                   value: viewModel.completedCount.toString(),
                   color: kcSuccessColor,
+                  icon: Icons.check_circle,
                 ),
+                if (viewModel.overdueCount > 0) ...[
+                  _buildDivider(),
+                  _buildStatColumn(
+                    context,
+                    title: 'Overdue',
+                    value: viewModel.overdueCount.toString(),
+                    color: kcErrorColor,
+                    icon: Icons.warning,
+                  ),
+                ],
               ],
             ),
           ),
-          verticalSpaceMedium,
 
           // Orders List
           Expanded(
             child: viewModel.displayedOrders.isEmpty
                 ? _buildEmptyState(context, viewModel)
-                : ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: viewModel.displayedOrders.length,
-              itemBuilder: (context, index) {
-                final order = viewModel.displayedOrders[index];
-                return _buildOrderCard(context, order, viewModel);
-              },
+                : RefreshIndicator(
+              onRefresh: viewModel.refreshData,
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: viewModel.displayedOrders.length,
+                itemBuilder: (context, index) {
+                  final order = viewModel.displayedOrders[index];
+                  return _buildEnhancedOrderCard(context, order, viewModel);
+                },
+              ),
             ),
           ),
         ],
@@ -169,44 +207,60 @@ class OrdersView extends StackedView<OrdersViewModel> {
   }
 
   Widget _buildEmptyState(BuildContext context, OrdersViewModel viewModel) {
+    String title = 'No Orders Found';
+    String message = 'Start by creating your first order';
+    IconData icon = Icons.shopping_cart_outlined;
+
+    if (viewModel.showOverdueOnly) {
+      title = 'No Overdue Orders';
+      message = 'All orders are on schedule';
+      icon = Icons.check_circle_outline;
+    } else if (viewModel.selectedTab > 0) {
+      final tabNames = ['', 'Pending', 'Production', 'Completed'];
+      title = 'No ${tabNames[viewModel.selectedTab]} Orders';
+      message = 'No orders in this category';
+    }
+
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.shopping_cart_outlined,
-            size: 80,
-            color: kcPrimaryColor.withOpacity(0.5),
-          ),
-          verticalSpaceMedium,
-          Text(
-            viewModel.showOverdueOnly ? 'No Overdue Orders' : 'No Orders Found',
-            style: heading3Style(context),
-          ),
-          verticalSpaceSmall,
-          Text(
-            viewModel.showOverdueOnly
-                ? 'All orders are on schedule'
-                : 'Start by creating a new order',
-            style: bodyStyle(context),
-            textAlign: TextAlign.center,
-          ),
-          verticalSpaceLarge,
-          if (!viewModel.showOverdueOnly)
-            ElevatedButton.icon(
-              onPressed: viewModel.showAddOrderDialog,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: kcPrimaryColor,
-                padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              ),
-              icon: const Icon(Icons.add),
-              label: Text(
-                'Create Order',
-                style: buttonTextStyle(context),
-              ),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 80,
+              color: kcPrimaryColor.withOpacity(0.5),
             ),
-        ],
+            verticalSpaceMedium,
+            Text(
+              title,
+              style: heading3Style(context),
+              textAlign: TextAlign.center,
+            ),
+            verticalSpaceSmall,
+            Text(
+              message,
+              style: bodyStyle(context),
+              textAlign: TextAlign.center,
+            ),
+            if (!viewModel.showOverdueOnly) ...[
+              verticalSpaceLarge,
+              ElevatedButton.icon(
+                onPressed: viewModel.showAddOrderDialog,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kcPrimaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                ),
+                icon: const Icon(Icons.add),
+                label: Text(
+                  'Create First Order',
+                  style: buttonTextStyle(context),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -216,28 +270,20 @@ class OrdersView extends StackedView<OrdersViewModel> {
         required String title,
         required String value,
         required Color color,
+        required IconData icon,
       }) {
     return Column(
       children: [
+        Icon(icon, color: color, size: 20),
+        verticalSpaceTiny,
+        Text(
+          value,
+          style: heading4Style(context).copyWith(color: color),
+        ),
         Text(
           title,
-          style: subtitleStyle(context),
-        ),
-        verticalSpaceSmall,
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            shape: BoxShape.circle,
-          ),
-          child: Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
-            ),
-          ),
+          style: captionStyle(context),
+          textAlign: TextAlign.center,
         ),
       ],
     );
@@ -251,34 +297,44 @@ class OrdersView extends StackedView<OrdersViewModel> {
     );
   }
 
-  Widget _buildOrderCard(
+  Widget _buildEnhancedOrderCard(
       BuildContext context, dynamic order, OrdersViewModel viewModel) {
     Color statusColor;
+    IconData statusIcon;
+
     switch (order.status) {
       case 'Pending':
         statusColor = kcWarningColor;
+        statusIcon = Icons.pending_actions;
         break;
       case 'Produksi':
         statusColor = kcInfoColor;
+        statusIcon = Icons.precision_manufacturing;
         break;
       case 'Selesai':
         statusColor = kcSuccessColor;
+        statusIcon = Icons.check_circle;
         break;
       default:
         statusColor = kcPrimaryColor;
+        statusIcon = Icons.help_outline;
     }
 
+    final isOverdue = order.isOverdue;
+    final daysRemaining = order.daysRemaining;
+
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: order.isOverdue
+        side: isOverdue
             ? BorderSide(color: kcErrorColor.withOpacity(0.5), width: 1.5)
             : BorderSide.none,
       ),
       child: InkWell(
         onTap: () => viewModel.showOrderDetails(order),
+        onLongPress: () => _showOrderActions(context, order, viewModel),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -293,50 +349,64 @@ class OrdersView extends StackedView<OrdersViewModel> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
+                          horizontal: 8,
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
                           color: kcPrimaryColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
                           order.orderId,
-                          style: const TextStyle(
+                          style: captionStyle(context).copyWith(
                             color: kcPrimaryColor,
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
                           ),
                         ),
                       ),
                       horizontalSpaceSmall,
                       Container(
                         padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
+                          horizontal: 8,
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
                           color: statusColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(20),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          order.displayStatus,
-                          style: TextStyle(
-                            color: statusColor,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(statusIcon, size: 12, color: statusColor),
+                            horizontalSpaceTiny,
+                            Text(
+                              order.displayStatus,
+                              style: captionStyle(context).copyWith(
+                                color: statusColor,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  Text(
-                    formatDate(order.tanggalOrder),
-                    style: captionStyle(context),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Order Date',
+                        style: captionStyle(context),
+                      ),
+                      Text(
+                        formatDate(order.tanggalOrder),
+                        style: bodyStyle(context).copyWith(fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ),
                 ],
               ),
-              verticalSpaceMedium,
+              verticalSpaceSmall,
 
               // Product and customer info
               Row(
@@ -348,35 +418,40 @@ class OrdersView extends StackedView<OrdersViewModel> {
                       children: [
                         Text(
                           order.namaProduk,
-                          style: bodyBoldStyle(context),
+                          style: heading4Style(context),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         verticalSpaceTiny,
-                        Text(
-                          'Color: ${order.warna}',
-                          style: bodySmallStyle(context),
-                        ),
-                        verticalSpaceSmall,
                         Row(
                           children: [
-                            const Icon(
-                              Icons.person_outline,
-                              size: 18,
-                              color: kcSecondaryTextColor,
-                            ),
-                            horizontalSpaceSmall,
+                            Icon(Icons.palette, size: 16, color: kcSecondaryTextColor),
+                            horizontalSpaceTiny,
                             Text(
-                              'Customer: ${order.namaCustomer}',
+                              'Color: ${order.warna}',
                               style: bodyStyle(context),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                        verticalSpaceTiny,
+                        Row(
+                          children: [
+                            Icon(Icons.person_outline, size: 16, color: kcSecondaryTextColor),
+                            horizontalSpaceTiny,
+                            Expanded(
+                              child: Text(
+                                order.namaCustomer,
+                                style: bodyStyle(context),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
                       ],
                     ),
                   ),
+                  horizontalSpaceMedium,
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
@@ -390,7 +465,7 @@ class OrdersView extends StackedView<OrdersViewModel> {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          'Qty: ${order.jumlahTotal}',
+                          '${order.jumlahTotal} pcs',
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -398,25 +473,57 @@ class OrdersView extends StackedView<OrdersViewModel> {
                         ),
                       ),
                       verticalSpaceSmall,
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.calendar_today,
-                            size: 16,
-                            color: kcSecondaryTextColor,
+                      if (order.estimasiMargin > 0) ...[
+                        Text(
+                          'Est. Price',
+                          style: captionStyle(context),
+                        ),
+                        Text(
+                          'Rp ${order.estimasiMargin.toStringAsFixed(0)}',
+                          style: bodyStyle(context).copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: kcSuccessColor,
                           ),
-                          horizontalSpaceTiny,
-                          Text(
-                            'Due: ${formatDate(order.deadlineProduksi)}',
-                            style: subtitleStyle(context),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ],
                   ),
                 ],
               ),
-              verticalSpaceMedium,
+              verticalSpaceSmall,
+
+              // Size Breakdown
+              if (order.ukuran.isNotEmpty) ...[
+                Text(
+                  'Size Distribution:',
+                  style: captionStyle(context),
+                ),
+                verticalSpaceTiny,
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: order.ukuran.entries.map<Widget>((entry) {
+                    if (entry.value > 0) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: kcInfoColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${entry.key}: ${entry.value}',
+                          style: captionStyle(context).copyWith(
+                            color: kcInfoColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }
+                    return const SizedBox.shrink();
+                  }).toList(),
+                ),
+                verticalSpaceSmall,
+              ],
 
               // Progress and overdue warning
               Column(
@@ -427,13 +534,13 @@ class OrdersView extends StackedView<OrdersViewModel> {
                     children: [
                       Text(
                         'Progress',
-                        style: subtitleStyle(context),
+                        style: bodyStyle(context).copyWith(fontWeight: FontWeight.w500),
                       ),
                       Text(
                         '${(order.progress * 100).toInt()}%',
-                        style: const TextStyle(
-                          color: kcPrimaryColor,
+                        style: bodyStyle(context).copyWith(
                           fontWeight: FontWeight.bold,
+                          color: isOverdue ? kcErrorColor : kcPrimaryColor,
                         ),
                       ),
                     ],
@@ -441,54 +548,175 @@ class OrdersView extends StackedView<OrdersViewModel> {
                   verticalSpaceTiny,
                   customProgressIndicator(
                     value: order.progress,
-                    color: order.isOverdue ? kcErrorColor : kcPrimaryColor,
+                    color: isOverdue ? kcErrorColor : kcPrimaryColor,
                   ),
-                  if (order.isOverdue) ...[
-                    verticalSpaceSmall,
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.warning_amber_rounded,
-                          color: kcErrorColor,
-                          size: 16,
-                        ),
-                        horizontalSpaceTiny,
-                        Text(
-                          'Overdue by ${-order.daysRemaining} days',
-                          style: const TextStyle(
-                            color: kcErrorColor,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
+                  verticalSpaceSmall,
+
+                  // Deadline Information
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.calendar_today,
+                            size: 16,
+                            color: isOverdue ? kcErrorColor : kcSecondaryTextColor,
+                          ),
+                          horizontalSpaceTiny,
+                          Text(
+                            'Deadline: ${formatDate(order.deadlineProduksi)}',
+                            style: bodyStyle(context).copyWith(
+                              color: isOverdue ? kcErrorColor : null,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (isOverdue)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: kcErrorColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.warning, size: 12, color: kcErrorColor),
+                              horizontalSpaceTiny,
+                              Text(
+                                'Overdue ${-daysRemaining} days',
+                                style: captionStyle(context).copyWith(
+                                  color: kcErrorColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else if (daysRemaining <= 3 && order.status != 'Selesai')
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: kcWarningColor.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.timer, size: 12, color: kcWarningColor),
+                              horizontalSpaceTiny,
+                              Text(
+                                'Due in $daysRemaining days',
+                                style: captionStyle(context).copyWith(
+                                  color: kcWarningColor,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                      ],
-                    ),
-                  ] else if (order.daysRemaining <= 3 &&
-                      order.status != 'Selesai') ...[
-                    verticalSpaceSmall,
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.timer,
-                          color: kcWarningColor,
-                          size: 16,
-                        ),
-                        horizontalSpaceTiny,
-                        Text(
-                          'Due in ${order.daysRemaining} days',
-                          style: const TextStyle(
-                            color: kcWarningColor,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                    ],
+                  ),
                 ],
               ),
+
+              // Notes (if any)
+              if (order.catatan.isNotEmpty) ...[
+                verticalSpaceSmall,
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: kcBackgroundColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  width: double.infinity,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Notes:',
+                        style: captionStyle(context).copyWith(fontWeight: FontWeight.w500),
+                      ),
+                      verticalSpaceTiny,
+                      Text(
+                        order.catatan,
+                        style: captionStyle(context),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  void _showOrderActions(BuildContext context, dynamic order, OrdersViewModel viewModel) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Order Actions',
+              style: heading4Style(context),
+            ),
+            verticalSpaceMedium,
+            ListTile(
+              leading: const Icon(Icons.visibility, color: kcInfoColor),
+              title: const Text('View Details'),
+              onTap: () {
+                Navigator.pop(context);
+                viewModel.showOrderDetails(order);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit, color: kcPrimaryColor),
+              title: const Text('Edit Order'),
+              onTap: () {
+                Navigator.pop(context);
+                viewModel.editOrder(order.orderId);
+              },
+            ),
+            if (order.status != 'Selesai') ...[
+              ListTile(
+                leading: const Icon(Icons.update, color: kcWarningColor),
+                title: const Text('Update Status'),
+                onTap: () {
+                  Navigator.pop(context);
+                  viewModel.showUpdateStatusDialog(order);
+                },
+              ),
+            ],
+            ListTile(
+              leading: const Icon(Icons.content_copy, color: kcSecondaryColor),
+              title: const Text('Duplicate Order'),
+              onTap: () {
+                Navigator.pop(context);
+                viewModel.duplicateOrder(order);
+              },
+            ),
+            if (order.status == 'Pending') ...[
+              ListTile(
+                leading: const Icon(Icons.delete, color: kcErrorColor),
+                title: const Text('Delete Order'),
+                onTap: () {
+                  Navigator.pop(context);
+                  viewModel.deleteOrder(order);
+                },
+              ),
+            ],
+          ],
         ),
       ),
     );

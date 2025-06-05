@@ -73,7 +73,7 @@ class AuthViewModel extends BaseViewModel {
       // Memeriksa status dan peran pengguna menggunakan getter
       if (userData.isActive) {
         // Lakukan sesuatu jika pengguna aktif
-        await _navigationService.replaceWithDashboardView();
+        await _navigationService.navigateToEnhancedDashboardView();
       } else {
         _errorMessage = 'Akun Anda tidak aktif';
         notifyListeners();

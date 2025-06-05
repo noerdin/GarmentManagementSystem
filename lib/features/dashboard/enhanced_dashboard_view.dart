@@ -348,10 +348,10 @@ class EnhancedDashboardView extends StackedView<EnhancedDashboardViewModel> {
             mainAxisSpacing: 16,
             childAspectRatio: 2.5,
             children: [
-              _buildStatusCard('Pending', viewModel.pendingOrders, kcWarningColor),
-              _buildStatusCard('In Production', viewModel.inProductionOrders, kcInfoColor),
-              _buildStatusCard('Completed', viewModel.completedOrders, kcSuccessColor),
-              _buildStatusCard('Overdue', viewModel.overdueOrders, kcErrorColor),
+              _buildStatusCard(context, 'Pending', viewModel.pendingOrders, kcWarningColor),
+              _buildStatusCard(context, 'In Production', viewModel.inProductionOrders, kcInfoColor),
+              _buildStatusCard(context, 'Completed', viewModel.completedOrders, kcSuccessColor),
+              _buildStatusCard(context, 'Overdue', viewModel.overdueOrders, kcErrorColor),
             ],
           ),
         ],
@@ -359,7 +359,7 @@ class EnhancedDashboardView extends StackedView<EnhancedDashboardViewModel> {
     );
   }
 
-  Widget _buildStatusCard(String title, int count, Color color) {
+  Widget _buildStatusCard(BuildContext context, String title, int count, Color color) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -413,10 +413,10 @@ class EnhancedDashboardView extends StackedView<EnhancedDashboardViewModel> {
           verticalSpaceMedium,
           Column(
             children: [
-              _buildProgressRow('Cutting', viewModel.todayCutting, viewModel.targetCutting),
-              _buildProgressRow('Sewing', viewModel.todaySewing, viewModel.targetSewing),
-              _buildProgressRow('Finishing', viewModel.todayFinishing, viewModel.targetFinishing),
-              _buildProgressRow('Washing', viewModel.todayWashing, viewModel.targetWashing),
+              _buildProgressRow(context, 'Cutting', viewModel.todayCutting, viewModel.targetCutting),
+              _buildProgressRow(context, 'Sewing', viewModel.todaySewing, viewModel.targetSewing),
+              _buildProgressRow(context, 'Finishing', viewModel.todayFinishing, viewModel.targetFinishing),
+              _buildProgressRow(context, 'Washing', viewModel.todayWashing, viewModel.targetWashing),
             ],
           ),
         ],
@@ -424,7 +424,7 @@ class EnhancedDashboardView extends StackedView<EnhancedDashboardViewModel> {
     );
   }
 
-  Widget _buildProgressRow(String stage, int current, int target) {
+  Widget _buildProgressRow(BuildContext context, String stage, int current, int target) {
     final progress = target > 0 ? current / target : 0.0;
     final color = _getStageColor(stage);
 
@@ -510,13 +510,13 @@ class EnhancedDashboardView extends StackedView<EnhancedDashboardViewModel> {
           Row(
             children: [
               Expanded(
-                child: _buildMaterialStat('Total Materials', viewModel.totalMaterials),
+                child: _buildMaterialStat(context, 'Total Materials', viewModel.totalMaterials),
               ),
               Expanded(
-                child: _buildMaterialStat('Low Stock', viewModel.lowStockCount),
+                child: _buildMaterialStat(context, 'Low Stock', viewModel.lowStockCount),
               ),
               Expanded(
-                child: _buildMaterialStat('Out of Stock', viewModel.outOfStockCount),
+                child: _buildMaterialStat(context, 'Out of Stock', viewModel.outOfStockCount),
               ),
             ],
           ),
@@ -525,7 +525,7 @@ class EnhancedDashboardView extends StackedView<EnhancedDashboardViewModel> {
     );
   }
 
-  Widget _buildMaterialStat(String title, int count) {
+  Widget _buildMaterialStat(BuildContext context, String title, int count) {
     return Column(
       children: [
         Text(
@@ -636,6 +636,7 @@ class EnhancedDashboardView extends StackedView<EnhancedDashboardViewModel> {
             children: [
               Expanded(
                 child: _buildPerformanceMetric(
+                  context,
                   'Efficiency',
                   '${viewModel.overallEfficiency}%',
                   viewModel.overallEfficiency >= 80 ? kcSuccessColor : kcWarningColor,
@@ -643,6 +644,7 @@ class EnhancedDashboardView extends StackedView<EnhancedDashboardViewModel> {
               ),
               Expanded(
                 child: _buildPerformanceMetric(
+                  context,
                   'Quality Score',
                   '${viewModel.qualityScore}%',
                   viewModel.qualityScore >= 90 ? kcSuccessColor : kcWarningColor,
@@ -650,6 +652,7 @@ class EnhancedDashboardView extends StackedView<EnhancedDashboardViewModel> {
               ),
               Expanded(
                 child: _buildPerformanceMetric(
+                  context,
                   'On Time Delivery',
                   '${viewModel.onTimeDelivery}%',
                   viewModel.onTimeDelivery >= 85 ? kcSuccessColor : kcErrorColor,
@@ -662,7 +665,7 @@ class EnhancedDashboardView extends StackedView<EnhancedDashboardViewModel> {
     );
   }
 
-  Widget _buildPerformanceMetric(String title, String value, Color color) {
+  Widget _buildPerformanceMetric(BuildContext context, String title, String value, Color color) {
     return Column(
       children: [
         Text(

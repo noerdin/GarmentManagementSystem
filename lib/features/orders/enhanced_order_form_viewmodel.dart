@@ -36,6 +36,7 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
   // Form State
   bool get isEditing => orderId != null;
   OrderModel? _existingOrder;
+  bool _isLoadingOrder = false;
 
   // Date selections
   DateTime? _selectedOrderDate = DateTime.now();
@@ -53,6 +54,8 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
   DateTime? get selectedOrderDate => _selectedOrderDate;
   DateTime? get selectedDeadline => _selectedDeadline;
   String? get selectedPriority => _selectedPriority;
+  bool get isLoadingOrder => _isLoadingOrder;
+  OrderModel? get existingOrder => _existingOrder;
 
   int get totalQuantity {
     return _sizeQuantities.values.fold(0, (sum, qty) => sum + qty);
@@ -60,13 +63,20 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
 
   // Initialization
   Future<void> init() async {
-    if (isEditing) {
-      await _loadExistingOrder();
-    } else {
-      // Generate new order ID suggestion
-      _generateOrderIdSuggestion();
+    setBusy(true);
+    try {
+      if (isEditing) {
+        await _loadExistingOrder();
+      } else {
+        // Generate new order ID suggestion
+        _generateOrderIdSuggestion();
+      }
+      _initializeSizeQuantities();
+    } catch (e) {
+      setError(AppError.generic('Failed to initialize: $e'));
+    } finally {
+      setBusy(false);
     }
-    _initializeSizeQuantities();
   }
 
   void _generateOrderIdSuggestion() {
@@ -74,9 +84,11 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
     final year = now.year.toString();
     final month = now.month.toString().padLeft(2, '0');
     final day = now.day.toString().padLeft(2, '0');
+    final hour = now.hour.toString().padLeft(2, '0');
+    final minute = now.minute.toString().padLeft(2, '0');
 
     // Format: ORD2025MMDD### (you can adjust this format)
-    final suggestion = 'ORD$year$month$day';
+    final suggestion = 'ORD$year$month$day$hour$minute';
     orderIdController.text = suggestion;
   }
 
@@ -91,19 +103,31 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
   }
 
   Future<void> _loadExistingOrder() async {
-    setBusy(true);
+    _isLoadingOrder = true;
+    notifyListeners();
+
     try {
+      print('Loading order with ID: $orderId');
       _existingOrder = await _firestoreService.getOrderById(orderId!);
+      print('Order loaded successfully: ${_existingOrder?.orderId}');
       _populateFormWithExistingData();
     } catch (e) {
+      print('Error loading order: $e');
       setError(AppError.generic('Failed to load order: $e'));
+
+      // Show error dialog and navigate back
+      SnackbarHelper.showError('Order not found or failed to load');
+      _navigationService.back();
     } finally {
-      setBusy(false);
+      _isLoadingOrder = false;
+      notifyListeners();
     }
   }
 
   void _populateFormWithExistingData() {
     if (_existingOrder == null) return;
+
+    print('Populating form with order data: ${_existingOrder!.orderId}');
 
     orderIdController.text = _existingOrder!.orderId;
     quantityController.text = _existingOrder!.jumlahTotal.toString();
@@ -121,7 +145,39 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
       estimatedPriceController.text = _existingOrder!.estimasiMargin.toString();
     }
 
+    // Set size quantities
+    _sizeQuantities.clear();
+    for (String size in availableSizes) {
+      _sizeQuantities[size] = _existingOrder!.ukuran[size] ?? 0;
+    }
+
+    // Try to extract product category from product name if not available
+    if (productCategoryController.text.isEmpty) {
+      _inferProductCategory(_existingOrder!.namaProduk);
+    }
+
+    print('Form populated successfully');
     notifyListeners();
+  }
+
+  void _inferProductCategory(String productName) {
+    final lowerName = productName.toLowerCase();
+
+    if (lowerName.contains('t-shirt') || lowerName.contains('kaos')) {
+      productCategoryController.text = 'T-Shirt';
+    } else if (lowerName.contains('polo')) {
+      productCategoryController.text = 'Polo Shirt';
+    } else if (lowerName.contains('hoodie')) {
+      productCategoryController.text = 'Hoodie';
+    } else if (lowerName.contains('jacket') || lowerName.contains('jaket')) {
+      productCategoryController.text = 'Jacket';
+    } else if (lowerName.contains('dress')) {
+      productCategoryController.text = 'Dress';
+    } else if (lowerName.contains('pants') || lowerName.contains('celana')) {
+      productCategoryController.text = 'Pants';
+    } else {
+      productCategoryController.text = 'Other';
+    }
   }
 
   // Form Actions
@@ -169,6 +225,54 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
     notifyListeners();
   }
 
+  // Get current size quantity for display
+  int getSizeQuantity(String size) {
+    return _sizeQuantities[size] ?? 0;
+  }
+
+  /// Menghitung persentase kelengkapan form berdasarkan field yang sudah diisi
+  double getFormCompletionPercentage() {
+    // Field-field yang wajib diisi
+    final requiredFields = [
+      orderIdController.text.trim().isNotEmpty,          // Order ID
+      selectedOrderDate != null,                          // Order Date
+      customerNameController.text.trim().isNotEmpty,     // Customer Name
+      productNameController.text.trim().isNotEmpty,      // Product Name
+      productCategoryController.text.trim().isNotEmpty,  // Product Category
+      colorController.text.trim().isNotEmpty,            // Color
+      totalQuantity > 0,                                  // Has quantity
+      selectedDeadline != null,                           // Deadline
+      selectedPriority != null && selectedPriority!.isNotEmpty, // Priority
+    ];
+
+    // Optional fields (menambah nilai completion)
+    final optionalFields = [
+      customerContactController.text.trim().isNotEmpty,
+      customerAddressController.text.trim().isNotEmpty,
+      materialTypeController.text.trim().isNotEmpty,
+      estimatedPriceController.text.trim().isNotEmpty,
+      designSpecsController.text.trim().isNotEmpty,
+      notesController.text.trim().isNotEmpty,
+    ];
+
+    // Hitung required fields yang sudah diisi
+    int completedRequired = requiredFields.where((field) => field).length;
+    int totalRequired = requiredFields.length;
+
+    // Hitung optional fields yang sudah diisi
+    int completedOptional = optionalFields.where((field) => field).length;
+    int totalOptional = optionalFields.length;
+
+    // Hitung persentase: 85% dari required fields + 15% dari optional fields
+    double requiredPercentage = (completedRequired / totalRequired) * 0.85;
+    double optionalPercentage = (completedOptional / totalOptional) * 0.15;
+
+    double totalPercentage = requiredPercentage + optionalPercentage;
+
+    // Pastikan tidak melebihi 1.0 (100%)
+    return totalPercentage.clamp(0.0, 1.0);
+  }
+
   // Validation
   String? validateOrderId(String? value) {
     if (value == null || value.trim().isEmpty) {
@@ -202,6 +306,10 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
 
   // Check if Order ID already exists
   Future<bool> _checkOrderIdExists(String orderId) async {
+    if (isEditing && orderId == _existingOrder?.orderId) {
+      return false; // Same order ID is allowed when editing
+    }
+
     try {
       await _firestoreService.getOrderById(orderId);
       return true; // Order exists
@@ -304,6 +412,7 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
       deadlineProduksi: _selectedDeadline!,
       catatan: notesController.text.trim(),
       estimasiMargin: double.tryParse(estimatedPriceController.text) ?? 0.0,
+      // Note: We don't update orderId, tanggalOrder, status, or progress in edit mode
     );
 
     await _firestoreService.updateOrder(updatedOrder);
@@ -335,11 +444,15 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
 
   // Delete Order
   Future<void> deleteOrder() async {
-    if (!isEditing) return;
+    if (!isEditing || _existingOrder == null) return;
 
     final result = await _dialogService.showDialog(
       title: 'Delete Order',
-      description: 'Are you sure you want to delete this order?\n\nOrder: ${orderIdController.text}\nCustomer: ${customerNameController.text}\n\nThis action cannot be undone.',
+      description: 'Are you sure you want to delete this order?\n\n'
+          'Order: ${orderIdController.text}\n'
+          'Product: ${productNameController.text}\n'
+          'Quantity: ${totalQuantity}\n\n'
+          'This action cannot be undone.',
       buttonTitle: 'Delete',
       cancelTitle: 'Cancel',
     );

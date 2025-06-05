@@ -276,11 +276,11 @@ class EnhancedDashboardViewModel extends BaseViewModel {
   }
 
   void navigateToMaterials() {
-    _navigationService.navigateToMaterialsView();
+    _navigationService.navigateToMaterialPlanningView();
   }
 
   void navigateToProduction() {
-    _navigationService.navigateToProductionView();
+    _navigationService.navigateToEnhancedProductionFormView();
   }
 
   void navigateToShipping() {
