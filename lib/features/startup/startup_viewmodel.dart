@@ -22,7 +22,7 @@ class StartupViewModel extends BaseViewModel {
 
         if (isActive) {
           // Navigate to dashboard if user is logged in and active
-          await _navigationService.replaceWithDashboardView();
+          await _navigationService.replaceWithEnhancedDashboardView();
           return;
         } else {
           // User is not active, log them out and send to login

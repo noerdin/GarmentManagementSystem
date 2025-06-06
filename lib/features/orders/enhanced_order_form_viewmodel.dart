@@ -81,14 +81,13 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
 
   void _generateOrderIdSuggestion() {
     final now = DateTime.now();
-    final year = now.year.toString();
+    final year = now.year.toString().substring(2);
     final month = now.month.toString().padLeft(2, '0');
     final day = now.day.toString().padLeft(2, '0');
-    final hour = now.hour.toString().padLeft(2, '0');
-    final minute = now.minute.toString().padLeft(2, '0');
+    final sequential = now.millisecondsSinceEpoch.toString().substring(8, 11);
 
     // Format: ORD2025MMDD### (you can adjust this format)
-    final suggestion = 'ORD$year$month$day$hour$minute';
+    final suggestion = 'ORD$year$month$day$sequential';
     orderIdController.text = suggestion;
   }
 
@@ -279,9 +278,22 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
       return 'Order ID is required';
     }
 
-    // Check format (optional - adjust according to your requirements)
-    if (!RegExp(r'^ORD\d{8,}').hasMatch(value.trim())) {
-      return 'Order ID should start with "ORD" followed by numbers (e.g., ORD20250101)';
+    // More flexible validation - just ensure it's not empty and reasonably formatted
+    final trimmedValue = value.trim();
+
+    // Minimum length check
+    if (trimmedValue.length < 3) {
+      return 'Order ID must be at least 3 characters long';
+    }
+
+    // Maximum length check
+    if (trimmedValue.length > 20) {
+      return 'Order ID cannot exceed 20 characters';
+    }
+
+    // Allow alphanumeric and common symbols
+    if (!RegExp(r'^[a-zA-Z0-9\-_]+$').hasMatch(trimmedValue)) {
+      return 'Order ID can only contain letters, numbers, hyphens, and underscores';
     }
 
     return null;

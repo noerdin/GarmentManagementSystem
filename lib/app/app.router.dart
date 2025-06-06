@@ -445,14 +445,14 @@ extension NavigatorStateExtension on i11.NavigationService {
         transition: transition);
   }
 
-  Future<dynamic> replaceWithDashboardView([
+  Future<dynamic> replaceWithEnhancedDashboardView([
     int? routerId,
     bool preventDuplicates = true,
     Map<String, String>? parameters,
     Widget Function(BuildContext, Animation<double>, Animation<double>, Widget)?
     transition,
   ]) async {
-    return replaceWith<dynamic>(Routes.dashboardView,
+    return replaceWith<dynamic>(Routes.enhancedDashboardView,
         id: routerId,
         preventDuplicates: preventDuplicates,
         parameters: parameters,
