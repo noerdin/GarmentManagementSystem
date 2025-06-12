@@ -14,6 +14,7 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
   final DialogService _dialogService = locator<DialogService>();
 
   final String? orderId;
+
   EnhancedOrderFormViewModel({this.orderId});
 
   // Form Key
@@ -23,15 +24,19 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
   final TextEditingController orderIdController = TextEditingController();
   final TextEditingController quantityController = TextEditingController();
   final TextEditingController customerNameController = TextEditingController();
-  final TextEditingController customerContactController = TextEditingController();
-  final TextEditingController customerAddressController = TextEditingController();
+  final TextEditingController customerContactController =
+      TextEditingController();
+  final TextEditingController customerAddressController =
+      TextEditingController();
   final TextEditingController productNameController = TextEditingController();
-  final TextEditingController productCategoryController = TextEditingController();
+  final TextEditingController productCategoryController =
+      TextEditingController();
   final TextEditingController colorController = TextEditingController();
   final TextEditingController materialTypeController = TextEditingController();
   final TextEditingController designSpecsController = TextEditingController();
   final TextEditingController notesController = TextEditingController();
-  final TextEditingController estimatedPriceController = TextEditingController();
+  final TextEditingController estimatedPriceController =
+      TextEditingController();
 
   // Form State
   bool get isEditing => orderId != null;
@@ -43,7 +48,15 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
   DateTime? _selectedDeadline;
 
   // Size quantities
-  final List<String> availableSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+  final List<String> availableSizes = [
+    'XS',
+    'S',
+    'M',
+    'L',
+    'XL',
+    'XXL',
+    'XXXL'
+  ];
   Map<String, int> _sizeQuantities = {};
 
   // Priority levels
@@ -52,9 +65,13 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
 
   // Getters
   DateTime? get selectedOrderDate => _selectedOrderDate;
+
   DateTime? get selectedDeadline => _selectedDeadline;
+
   String? get selectedPriority => _selectedPriority;
+
   bool get isLoadingOrder => _isLoadingOrder;
+
   OrderModel? get existingOrder => _existingOrder;
 
   int get totalQuantity {
@@ -67,9 +84,6 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
     try {
       if (isEditing) {
         await _loadExistingOrder();
-      } else {
-        // Generate new order ID suggestion
-        _generateOrderIdSuggestion();
       }
       _initializeSizeQuantities();
     } catch (e) {
@@ -77,18 +91,6 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
     } finally {
       setBusy(false);
     }
-  }
-
-  void _generateOrderIdSuggestion() {
-    final now = DateTime.now();
-    final year = now.year.toString().substring(2);
-    final month = now.month.toString().padLeft(2, '0');
-    final day = now.day.toString().padLeft(2, '0');
-    final sequential = now.millisecondsSinceEpoch.toString().substring(8, 11);
-
-    // Format: ORD2025MMDD### (you can adjust this format)
-    final suggestion = 'ORD$year$month$day$sequential';
-    orderIdController.text = suggestion;
   }
 
   void _initializeSizeQuantities() {
@@ -128,21 +130,32 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
 
     print('Populating form with order data: ${_existingOrder!.orderId}');
 
+    // Populate basic order info
     orderIdController.text = _existingOrder!.orderId;
     quantityController.text = _existingOrder!.jumlahTotal.toString();
     customerNameController.text = _existingOrder!.namaCustomer;
-    productNameController.text = _existingOrder!.namaProduk;
-    colorController.text = _existingOrder!.warna;
-    notesController.text = _existingOrder!.catatan;
+    customerContactController.text = _existingOrder!.kontak ?? '';
+    customerAddressController.text = _existingOrder!.alamat ?? '';
 
-    // Set dates
-    _selectedOrderDate = _existingOrder!.tanggalOrder;
-    _selectedDeadline = _existingOrder!.deadlineProduksi;
+    // Populate product info
+    productNameController.text = _existingOrder!.namaProduk;
+    productCategoryController.text = _existingOrder!.kategori ?? '';
+    colorController.text = _existingOrder!.warna;
+    materialTypeController.text = _existingOrder!.material ?? '';
+    designSpecsController.text = _existingOrder!.spesifikasi ?? '';
+    notesController.text = _existingOrder!.catatan;
 
     // Set estimated price if available
     if (_existingOrder!.estimasiMargin > 0) {
       estimatedPriceController.text = _existingOrder!.estimasiMargin.toString();
     }
+
+    // Set dates
+    _selectedOrderDate = _existingOrder!.tanggalOrder;
+    _selectedDeadline = _existingOrder!.deadlineProduksi;
+
+    // Set priority
+    _selectedPriority = _existingOrder!.prioritas ?? 'Normal';
 
     // Set size quantities
     _sizeQuantities.clear();
@@ -151,9 +164,9 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
     }
 
     // Try to extract product category from product name if not available
-    if (productCategoryController.text.isEmpty) {
-      _inferProductCategory(_existingOrder!.namaProduk);
-    }
+    //if (productCategoryController.text.isEmpty) {
+    //  _inferProductCategory(_existingOrder!.namaProduk);
+    //}
 
     print('Form populated successfully');
     notifyListeners();
@@ -186,6 +199,8 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
   }
 
   Future<void> selectOrderDate(BuildContext context) async {
+    if (isEditing) return;
+
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedOrderDate ?? DateTime.now(),
@@ -203,7 +218,8 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
   Future<void> selectDeadline(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDeadline ?? DateTime.now().add(const Duration(days: 14)),
+      initialDate:
+          _selectedDeadline ?? DateTime.now().add(const Duration(days: 14)),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       helpText: 'Select Production Deadline',
@@ -217,11 +233,13 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
 
   void updateSizeQuantity(String size, String value) {
     final quantity = int.tryParse(value) ?? 0;
-    _sizeQuantities[size] = quantity;
+    if (quantity >= 0) { // Validasi agar tidak negatif
+      _sizeQuantities[size] = quantity;
 
-    // Auto-update total quantity
-    quantityController.text = totalQuantity.toString();
-    notifyListeners();
+      // Auto-update total quantity
+      quantityController.text = totalQuantity.toString();
+      notifyListeners();
+    }
   }
 
   // Get current size quantity for display
@@ -233,14 +251,14 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
   double getFormCompletionPercentage() {
     // Field-field yang wajib diisi
     final requiredFields = [
-      orderIdController.text.trim().isNotEmpty,          // Order ID
-      selectedOrderDate != null,                          // Order Date
-      customerNameController.text.trim().isNotEmpty,     // Customer Name
-      productNameController.text.trim().isNotEmpty,      // Product Name
-      productCategoryController.text.trim().isNotEmpty,  // Product Category
-      colorController.text.trim().isNotEmpty,            // Color
-      totalQuantity > 0,                                  // Has quantity
-      selectedDeadline != null,                           // Deadline
+      orderIdController.text.trim().isNotEmpty, // Order ID
+      selectedOrderDate != null, // Order Date
+      customerNameController.text.trim().isNotEmpty, // Customer Name
+      productNameController.text.trim().isNotEmpty, // Product Name
+      productCategoryController.text.trim().isNotEmpty, // Product Category
+      colorController.text.trim().isNotEmpty, // Color
+      totalQuantity > 0, // Has quantity
+      selectedDeadline != null, // Deadline
       selectedPriority != null && selectedPriority!.isNotEmpty, // Priority
     ];
 
@@ -343,15 +361,18 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
     }
 
     if (totalQuantity == 0) {
-      SnackbarHelper.showError('Please specify at least one quantity for sizes');
+      SnackbarHelper.showError(
+          'Please specify at least one quantity for sizes');
       return;
     }
 
     // Check if Order ID already exists (only for new orders)
     if (!isEditing) {
-      final orderExists = await _checkOrderIdExists(orderIdController.text.trim());
+      final orderExists =
+          await _checkOrderIdExists(orderIdController.text.trim());
       if (orderExists) {
-        SnackbarHelper.showError('Order ID already exists. Please use a different ID.');
+        SnackbarHelper.showError(
+            'Order ID already exists. Please use a different ID.');
         return;
       }
     }
@@ -373,20 +394,15 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
         await _createNewOrder(finalSizes);
       }
 
-      SnackbarHelper.showSuccess(
-          isEditing
-              ? 'Order updated successfully!'
-              : 'Order created successfully!'
-      );
+      SnackbarHelper.showSuccess(isEditing
+          ? 'Order updated successfully!'
+          : 'Order created successfully!');
 
       _navigationService.back(result: true);
-
     } catch (e) {
-      SnackbarHelper.showError(
-          isEditing
-              ? 'Failed to update order: $e'
-              : 'Failed to create order: $e'
-      );
+      SnackbarHelper.showError(isEditing
+          ? 'Failed to update order: $e'
+          : 'Failed to create order: $e');
     } finally {
       setBusy(false);
     }
@@ -447,7 +463,8 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
         'status': 'planning', // planning, confirmed, used
       };
 
-      await _firestoreService.addData('materialTemplates', order.orderId, materialTemplate);
+      await _firestoreService.addData(
+          'materialTemplates', order.orderId, materialTemplate);
     } catch (e) {
       print('Failed to create material planning entry: $e');
       // Don't throw error as this is supplementary
@@ -490,9 +507,11 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
 
     try {
       final orders = await _firestoreService.ordersStream().first;
-      final matchingOrders = orders.where((order) =>
-          order.namaCustomer.toLowerCase().contains(customerName.toLowerCase())
-      ).toList();
+      final matchingOrders = orders
+          .where((order) => order.namaCustomer
+              .toLowerCase()
+              .contains(customerName.toLowerCase()))
+          .toList();
 
       if (matchingOrders.isNotEmpty) {
         final lastOrder = matchingOrders.first;
@@ -510,9 +529,12 @@ class EnhancedOrderFormViewModel extends BaseViewModel {
 
     try {
       final orders = await _firestoreService.ordersStream().first;
-      final matchingProducts = orders.where((order) =>
-          order.namaProduk.toLowerCase().contains(category.toLowerCase())
-      ).map((order) => order.namaProduk).toSet().toList();
+      final matchingProducts = orders
+          .where((order) =>
+              order.namaProduk.toLowerCase().contains(category.toLowerCase()))
+          .map((order) => order.namaProduk)
+          .toSet()
+          .toList();
 
       if (matchingProducts.isNotEmpty) {
         print('Found similar products: $matchingProducts');

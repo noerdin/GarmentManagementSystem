@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:stacked/stacked.dart';
 import 'package:stacked_services/stacked_services.dart';
 import '../../app/app.dialogs.dart';
@@ -5,6 +6,7 @@ import '../../app/app.locator.dart';
 import '../../models/order_model.dart';
 import '../../models/material_requirement_model.dart';
 import '../../services/firestore_service.dart';
+import '../../shared/add_material_dialog.dart';
 import '../../shared/snackbar_helper.dart';
 
 class MaterialPlanningViewModel extends BaseViewModel {
@@ -33,6 +35,13 @@ class MaterialPlanningViewModel extends BaseViewModel {
   // Similar templates
   List<OrderMaterialTemplate> _similarTemplates = [];
   List<OrderMaterialTemplate> get similarTemplates => _similarTemplates;
+
+  // Material types and units for dropdown
+  final List<String> materialTypes = ['Bahan', 'Aksesoris'];
+  final List<String> unitOptions = [
+    'meter', 'yard', 'roll', 'piece', 'kilogram',
+    'gram', 'box', 'pack', 'dozen'
+  ];
 
   // Calculated totals
   double get totalEstimatedCost {
@@ -101,25 +110,18 @@ class MaterialPlanningViewModel extends BaseViewModel {
   }
 
   Future<void> addNewMaterial() async {
-    final result = await _dialogService.showCustomDialog(
-      variant: DialogType.form,
-      title: 'Add Material Requirement',
-      description: 'Enter material details',
-      data: _buildMaterialFormData(),
-    );
+    final result = await _showAddMaterialDialog();
 
-    if (result?.confirmed ?? false) {
-      final materialData = result?.data as Map<String, dynamic>;
-
+    if (result != null) {
       final material = MaterialRequirement(
         materialId: _generateMaterialId(),
-        materialName: materialData['name'] ?? '',
-        materialType: materialData['type'] ?? 'Bahan',
-        quantityNeeded: double.tryParse(materialData['quantity'] ?? '0') ?? 0.0,
-        unit: materialData['unit'] ?? 'meter',
-        estimatedPrice: double.tryParse(materialData['price'] ?? '0') ?? 0.0,
-        supplier: materialData['supplier'] ?? '',
-        notes: materialData['notes'] ?? '',
+        materialName: result['name'] ?? '',
+        materialType: result['type'] ?? 'Bahan',
+        quantityNeeded: double.tryParse(result['quantity'] ?? '0') ?? 0.0,
+        unit: result['unit'] ?? 'meter',
+        estimatedPrice: double.tryParse(result['price'] ?? '0') ?? 0.0,
+        supplier: result['supplier'] ?? '',
+        notes: result['notes'] ?? '',
       );
 
       _materialRequirements.add(material);
@@ -129,55 +131,21 @@ class MaterialPlanningViewModel extends BaseViewModel {
     }
   }
 
-  Map<String, dynamic> _buildMaterialFormData() {
-    return {
-      'fields': [
-        {
-          'key': 'name',
-          'label': 'Material Name',
-          'type': 'text',
-          'required': true,
-        },
-        {
-          'key': 'type',
-          'label': 'Material Type',
-          'type': 'dropdown',
-          'options': ['Bahan', 'Aksesoris'],
-          'required': true,
-        },
-        {
-          'key': 'quantity',
-          'label': 'Quantity Needed',
-          'type': 'number',
-          'required': true,
-        },
-        {
-          'key': 'unit',
-          'label': 'Unit',
-          'type': 'dropdown',
-          'options': ['meter', 'yard', 'piece', 'kilogram', 'gram', 'roll'],
-          'required': true,
-        },
-        {
-          'key': 'price',
-          'label': 'Estimated Price per Unit',
-          'type': 'number',
-          'required': true,
-        },
-        {
-          'key': 'supplier',
-          'label': 'Preferred Supplier',
-          'type': 'text',
-          'required': false,
-        },
-        {
-          'key': 'notes',
-          'label': 'Notes',
-          'type': 'textarea',
-          'required': false,
-        },
-      ],
-    };
+  Future<Map<String, dynamic>?> _showAddMaterialDialog() async {
+    final context = _navigationService.navigatorKey?.currentContext;
+    if (context == null) return null;
+
+    // Import the dialog widget (you'll need to add this import)
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => AddMaterialDialog(
+        materialTypes: materialTypes,
+        unitOptions: unitOptions,
+        productType: _selectedOrder?.namaProduk,
+      ),
+    );
+
+    return result;
   }
 
   void removeMaterial(int index) {
@@ -196,23 +164,42 @@ class MaterialPlanningViewModel extends BaseViewModel {
       return;
     }
 
-    final result = await _dialogService.showCustomDialog(
-      variant: DialogType.selection,
-      title: 'Copy from Template',
-      description: 'Select a template to copy material requirements from:',
-      data: {
-        'options': _similarTemplates.map((template) => {
-          'id': template.orderId,
-          'title': '${template.productName} (${template.color})',
-          'subtitle': 'Order: ${template.orderId} | Qty: ${template.quantityProduced}',
-        }).toList(),
-      },
-    );
+    // Show selection dialog for templates
+    String? selectedTemplateId = await _showTemplateSelectionDialog();
 
-    if (result?.confirmed ?? false) {
-      final selectedTemplateId = result?.data as String;
+    if (selectedTemplateId != null) {
       await _copyFromTemplate(selectedTemplateId);
     }
+  }
+
+  Future<String?> _showTemplateSelectionDialog() async {
+    return await showDialog<String>(
+      context: _navigationService.navigatorKey!.currentContext!,
+      builder: (context) => AlertDialog(
+        title: Text('Copy from Template'),
+        content: Container(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: _similarTemplates.length,
+            itemBuilder: (context, index) {
+              final template = _similarTemplates[index];
+              return ListTile(
+                title: Text('${template.productName} (${template.color})'),
+                subtitle: Text('Order: ${template.orderId} | Qty: ${template.quantityProduced}'),
+                onTap: () => Navigator.pop(context, template.orderId),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _copyFromTemplate(String templateId) async {
@@ -402,7 +389,8 @@ class MaterialPlanningViewModel extends BaseViewModel {
 
     await _dialogService.showDialog(
       title: 'Shopping List Generated',
-      description: 'Shopping list has been generated and copied to clipboard.',
+      description: shoppingList,
+      buttonTitle: 'OK',
     );
 
     // You can also save this to device storage or send via email

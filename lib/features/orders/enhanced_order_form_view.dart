@@ -79,8 +79,8 @@ class EnhancedOrderFormView extends StackedView<EnhancedOrderFormViewModel> {
                               validator: viewModel.validateOrderId,
                               prefixIcon: Icons.tag,
                               hintText: 'e.g., ORD2025001',
-                              enabled:
-                                  !viewModel.isEditing, // Disable when editing
+                              readOnly: viewModel.isEditing,
+                              enabled: true,
                             ),
                           ),
                           horizontalSpaceMedium,
@@ -94,8 +94,8 @@ class EnhancedOrderFormView extends StackedView<EnhancedOrderFormViewModel> {
                               inputFormatters: [
                                 FilteringTextInputFormatter.digitsOnly
                               ],
-                              enabled:
-                                  false, // Auto-calculated from size breakdown
+                              readOnly:
+                                  true, // Auto-calculated from size breakdown
                             ),
                           ),
                         ],
@@ -105,10 +105,9 @@ class EnhancedOrderFormView extends StackedView<EnhancedOrderFormViewModel> {
                         context,
                         label: 'Order Date',
                         selectedDate: viewModel.selectedOrderDate,
-                        onTap: () => viewModel.selectOrderDate(context),
+                        onTap: viewModel.isEditing ? () {} : () => viewModel.selectOrderDate(context),
                         validator: viewModel.validateRequired,
-                        enabled: !viewModel
-                            .isEditing, // Usually don't change order date when editing
+                        readOnly: viewModel.isEditing, // Usually don't change order date when editing
                       ),
                     ],
                   ),
@@ -124,6 +123,7 @@ class EnhancedOrderFormView extends StackedView<EnhancedOrderFormViewModel> {
                         controller: viewModel.customerNameController,
                         validator: viewModel.validateRequired,
                         prefixIcon: Icons.person,
+                        readOnly: false,
                       ),
                       verticalSpaceMedium,
                       _buildTextField(
@@ -245,6 +245,7 @@ class EnhancedOrderFormView extends StackedView<EnhancedOrderFormViewModel> {
                         selectedDate: viewModel.selectedDeadline,
                         onTap: () => viewModel.selectDeadline(context),
                         validator: viewModel.validateDeadline,
+                        readOnly: false,
                       ),
                       verticalSpaceMedium,
                       Row(
@@ -489,6 +490,7 @@ class EnhancedOrderFormView extends StackedView<EnhancedOrderFormViewModel> {
     List<TextInputFormatter>? inputFormatters,
     String? hintText,
     bool enabled = true,
+    bool readOnly = false,
   }) {
     return TextFormField(
       controller: controller,
@@ -497,6 +499,7 @@ class EnhancedOrderFormView extends StackedView<EnhancedOrderFormViewModel> {
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       enabled: enabled,
+      readOnly: readOnly,
       decoration: InputDecoration(
         labelText: label,
         hintText: hintText,
@@ -506,8 +509,8 @@ class EnhancedOrderFormView extends StackedView<EnhancedOrderFormViewModel> {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: kcPrimaryColor, width: 2),
         ),
-        filled: !enabled,
-        fillColor: !enabled ? Colors.grey[100] : null,
+        filled: !enabled || readOnly,
+        fillColor: (!enabled || readOnly) ? Colors.grey[100] : null,
       ),
     );
   }
@@ -548,10 +551,11 @@ class EnhancedOrderFormView extends StackedView<EnhancedOrderFormViewModel> {
     required VoidCallback onTap,
     String? Function(String?)? validator,
     bool enabled = true,
+    bool readOnly = false,
   }) {
     return TextFormField(
       readOnly: true,
-      onTap: enabled ? onTap : null,
+      onTap: (readOnly || !enabled) ? null : onTap,
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
@@ -562,8 +566,8 @@ class EnhancedOrderFormView extends StackedView<EnhancedOrderFormViewModel> {
           borderRadius: BorderRadius.circular(8),
           borderSide: const BorderSide(color: kcPrimaryColor, width: 2),
         ),
-        filled: !enabled,
-        fillColor: !enabled ? Colors.grey[100] : null,
+        filled: readOnly || !enabled,
+        fillColor: (readOnly || !enabled) ? Colors.grey[100] : null,
       ),
       controller: TextEditingController(
         text: selectedDate != null ? formatDate(selectedDate) : '',
